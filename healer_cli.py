@@ -6,9 +6,10 @@ import tempfile
 import subprocess
 import shutil
 import time
+import base64
 from sqlalchemy.orm import joinedload
 from database import (get_session_factory, Avatar, InformationCopy,
-                      Request, Session as DbSession, AvatarGroup, ICGroup, AvatarGroupMember, ICGroupMember, RequestGroup, RequestGroupMember)
+                      Request, Session as DbSession, AvatarGroup, ICGroup, AvatarGroupMember, ICGroupMember, RequestGroup, RequestGroupMember, Base)
 from config import DAEMON_HOST, DAEMON_PORT
 
 def send_command(command: dict):
@@ -191,6 +192,124 @@ def list_avatar_groups():
     db.close()
 
 cli.add_command(list_items)
+
+# --- Import/Export Commands ---
+@cli.command()
+@click.option('--output-file', '-o', default='healer_db_export.json', help='The file to export the database to.')
+def export(output_file):
+    """Exports the entire database to a JSON file."""
+    db = get_session_factory()()
+    data_to_export = {}
+
+    # The order of tables is important for import
+    # Start with tables that don't have foreign keys to others
+    table_order = [
+        'avatars', 'information_copies', 'requests', 'avatar_groups', 'ic_groups', 'request_groups',
+        'avatar_group_members', 'ic_group_members', 'request_group_members', 'sessions'
+    ]
+
+    click.echo("Starting database export...")
+
+    for table_name in table_order:
+        if table_name in Base.metadata.tables:
+            table = Base.metadata.tables[table_name]
+            model = next(m for m in Base.registry.mappers if m.local_table == table).class_
+            
+            click.echo(f"Exporting table: {table_name}")
+            
+            records = db.query(model).all()
+            data_list = []
+            for record in records:
+                record_dict = {}
+                for column in table.columns:
+                    value = getattr(record, column.name)
+                    if isinstance(value, bytes):
+                        record_dict[column.name] = base64.b64encode(value).decode('utf-8')
+                    elif isinstance(value, (datetime.datetime, datetime.date)):
+                        record_dict[column.name] = value.isoformat()
+                    elif isinstance(value, enum.Enum):
+                        record_dict[column.name] = value.value
+                    else:
+                        record_dict[column.name] = value
+                data_list.append(record_dict)
+            data_to_export[table_name] = data_list
+    
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(data_to_export, f, indent=4, ensure_ascii=False)
+        click.secho(f"Database successfully exported to {output_file}", fg='green')
+    except IOError as e:
+        click.secho(f"Error writing to file: {e}", fg='red')
+    finally:
+        db.close()
+
+@cli.command()
+@click.option('--input-file', '-i', type=click.Path(exists=True, readable=True), required=True, help='The JSON file to import the database from.')
+def import_db(input_file):
+    """Imports the database from a JSON file, overwriting existing data."""
+    
+    if not click.confirm(click.style("This is a destructive operation. It will wipe all current data. Do you want to continue?", fg='yellow', bold=True)):
+        click.echo("Import cancelled.")
+        return
+
+    db = get_session_factory()()
+    
+    try:
+        with open(input_file, 'r', encoding='utf-8') as f:
+            data_to_import = json.load(f)
+    except (IOError, json.JSONDecodeError) as e:
+        click.secho(f"Error reading or parsing the import file: {e}", fg='red')
+        db.close()
+        return
+
+    click.echo("Starting database import...")
+    
+    # Reverse order for deletion to respect foreign keys
+    table_order = [
+        'sessions', 'request_group_members', 'ic_group_members', 'avatar_group_members',
+        'request_groups', 'ic_groups', 'avatar_groups', 'requests', 'information_copies', 'avatars'
+    ]
+    
+    click.echo("Clearing existing data...")
+    for table_name in table_order:
+        if table_name in Base.metadata.tables:
+            table = Base.metadata.tables[table_name]
+            click.echo(f"Deleting from {table_name}")
+            db.execute(table.delete())
+
+    # Forward order for insertion
+    table_order.reverse()
+    
+    try:
+        for table_name in table_order:
+            if table_name in data_to_import:
+                table = Base.metadata.tables[table_name]
+                model = next(m for m in Base.registry.mappers if m.local_table == table).class_
+                records = data_to_import[table_name]
+                
+                click.echo(f"Importing data for {table_name}...")
+                
+                for record_dict in records:
+                    for column in table.columns:
+                        if column.name in record_dict and record_dict[column.name] is not None:
+                            # Handle binary data
+                            if isinstance(column.type, LargeBinary):
+                                record_dict[column.name] = base64.b64decode(record_dict[column.name])
+                            # Handle datetime
+                            elif isinstance(column.type, (DateTime,)):
+                                record_dict[column.name] = datetime.datetime.fromisoformat(record_dict[column.name])
+                    
+                    db.add(model(**record_dict))
+        
+        click.echo("Committing changes...")
+        db.commit()
+        click.secho("Database successfully imported.", fg='green')
+
+    except Exception as e:
+        db.rollback()
+        click.secho(f"An error occurred during import: {e}", fg='red')
+    finally:
+        db.close()
 
 # --- View Group ---
 @click.group(name='view')
