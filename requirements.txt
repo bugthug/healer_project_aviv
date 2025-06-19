@@ -1,0 +1,5 @@
+sqlalchemy
+click
+python-dotenv
+sqlalchemy-utils
+psycopg2-binary 

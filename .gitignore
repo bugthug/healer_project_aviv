@@ -1,0 +1,128 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*$py.class
+*.so
+
+# Distribution / packaging
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Logs and databases
+*.log
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+pip-log.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE settings
+.vscode/
+.idea/
+.spyderproject
+.ropeproject
+
+# mypy, pyre, pytype
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+cython_debug/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Temporary files
+*.tmp
+*~
+
+# OS-specific
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Project-specific ignores
+# Ignore all json, image, and audio files by default
+*.json
+*.jpeg
+*.jpg
+*.png
+*.wav
+*.zip
+
+# But specifically include files that should be in the repo
+!request.json
+!request2.json
+
+# Ignore sensitive and large files
+aviv-yodfat-phone.jpeg
+phone.json
+aviv-hebrew.json
+config.py
+healer-project-thin.zip
+/generated_json_files/
+/ics_catalog/
+darvaza_gas_crater.json
+yanar_dag.json
+north-pole.json
+missle.json
+kuwait.json
+dezful.json
+britian.json
+ballistic.json
+asic.json
+world.png
+usa.png
+yanar_dag.jpeg
+north-pole.png
+gates_of_hell.jpg
+fire.jpg
+fire.json
+british-male.json
+british-female.json
+country.json
+
+# If alembic files reappear
+alembic.ini
+alembic/ 

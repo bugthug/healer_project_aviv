@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=healer
+      - POSTGRES_PASSWORD=healer
+      - POSTGRES_DB=healer_db
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    command: >
+      sh -c "alembic upgrade head &&
+             python healer_daemon.py"
+    volumes:
+      - .:/app
+    ports:
+      - "9999:9999"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://healer:healer@db:5432/healer_db
+
+volumes:
+  postgres_data: 
